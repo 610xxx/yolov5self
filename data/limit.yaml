@@ -1,0 +1,5 @@
+path: ../limit # dataset root dir
+train: images/train # train images (relative to 'path') 1742289 images
+val: images/val
+
+names:  ['sl60', 'sl40','sl70','sl100','sl30','sl20','sl50','sl80','sl120','sl90','tl',]

@@ -1,0 +1,5 @@
+path: ./germany # dataset root dir
+train: images/train # train images (relative to 'path') 1742289 images
+val: images/val
+
+names:  ['masks','face','license plate']
