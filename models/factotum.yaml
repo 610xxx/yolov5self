@@ -1,0 +1,144 @@
+# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+# /*#tips:d w 更改需要结合对应pt模型  vs.yaml        5s6.yaml
+#                           性能      0.8            0.85
+#                           大小      48G            16G
+#                           稳定      0.8           0.7
+#   */                      
+
+
+# Parameters
+nc: 3  # number of classes     cbam>ca     收敛过慢11.13
+depth_multiple: 0.67  # model depth multiple    0.33
+width_multiple: 0.75  # layer channel multiple 0.5 
+anchors:
+    # - [8,16, 28,9, 49,23]
+    # - [85,38, 198,30, 135,59] 
+    # - [240,55, 245,97, 385,164]
+   #🚀pk自定义框大小
+#🚀添加pk平均框
+  # - [10,13, 16,30, 33,23]  # P3/8
+  # - [30,61, 62,45, 59,119]  # P4/16
+  # - [116,90, 156,198, 373,326]  # P5/32
+   - [5,6, 9,4, 7,9]
+   - [19,8, 11,14, 33,19]
+   - [23,32, 56,29, 89,43]  
+ 
+# YOLOv5 v6.0 backbone   🚀
+backbone:
+  # [from, number, module, args]特征提取
+  [[-1, 1, Conv, [64, 6, 2, 2]], # 0-P1/2     
+   [-1, 1, Conv, [128, 3, 2]],  # 1-P2/4
+   [-1, 3, C3, [128]],
+   #[-1, 3, CBAM, [128]],
+   [-1, 1, Conv, [256, 3, 2]],  # 3-P3/8
+   [-1, 6, C3, [256]],     
+   [-1, 1, Conv, [512, 3, 2]],  # 5-P4/16
+   [-1, 9, C3, [512]],    
+   #[-1, 9, CBAM, [512]], #🚀
+   [-1, 1, Conv, [1024, 3, 2]],  # 7-P5/32
+   [-1, 3, C3, [1024]],
+   [-1,3,CBAM,[1024]],  #9 
+   [-1, 1, SPPF, [1024, 5]],  # 10
+    #池化后注意力不如第9层                             (池化前全通道聚合利于提取特征)
+  ]
+#c3替换注意力
+# YOLOv5 v6.0 head
+head: #回归预测
+  [[-1, 1, Conv, [512, 1, 1]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [[-1, 6], 1, BiFPN_Concat2, [1]],  # cat backbone P4  concat  ✒️   Concat
+   [-1, 3, C3, [512, False]],  # 14
+
+   [-1, 1, Conv, [256, 1, 1]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [[-1, 4], 1, BiFPN_Concat2, [1]],  # cat backbone P3P   ✒️
+   [-1, 3, C3, [256, False]],  # 18 (P3/8-small)
+
+   [-1, 1, Conv, [256, 3, 2]],
+   [[-1, 15], 1, BiFPN_Concat2, [1]],  # cat head P4 #14    ✒️          +1
+   [-1, 3, C3, [512, False]], # 21 (P4/16-medium)
+   #[-1, 3, CBAM, [512, False]], #🚀
+
+   [-1, 1, Conv, [512, 3, 2]],
+   [[-1, 11], 1, BiFPN_Concat2, [1]],  # cat head P5   #10    ✒️         +1   
+   [-1, 3, C3, [1024, False]],  # 24 (P5/32-large)
+
+   [[18, 21, 24], 1, Detect, [nc, anchors]],  # Detect(P3, P4, P5) #17,20,23         +1
+  ]
+
+  #🚀🚀
+  #head:
+  #   [[-1, 1, Conv, [512, 1, 1]],
+  #  [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+  #  [[-1,6], 1, BiFPN_Concat2, [256,256]],  # cat backbone P4
+  #  [-1, 3, C3, [512, False]],  # 13
+ 
+  #  [-1, 1, Conv, [256, 1, 1]],
+  #  [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+  #  [[-1, 4], 1, BiFPN_Concat3, [128,128]],  # cat backbone P3
+  #  [-1, 3, C3, [256, False]],  # 17 (P3/8-small)
+ 
+ 
+  #  [-1, 1, Conv, [512, 3, 2]],   # 320, 640 # 
+  #  [[-1, 6, 13], 1, BiFPN_Concat2, [256,256]],  # cat head P4
+  #  [-1, 3, C3, [512, False]],  # 20 (P4/16-medium)
+ 
+  #  [-1, 1, Conv, [1024, 3, 2]], # 640, 1280 # 
+  #  [[-1, 9], 1, BiFPN_Concat2, [512, 512]],  # cat head P5  cat 20,20 #22
+  #  [-1, 3, C3, [1024, False]],  # 25 (P5/32-large) # 1280, 1280  #23
+ 
+ 
+  #  [[17, 20, 23], 1, Detect, [nc, anchors]] # Detect(P3, P4, P5)
+  # ]
+  #ERROR:yolo.py", line 250, in parse_model  for i, (f, n, m, args) in enumerate(d['backbone'] + d['head'])  (报错在concat，不需要对应通道)
+
+
+#yolov5s6版本 ++ 添加cbam🚀🚀 需要四层anchors  ,c++实现不了,已解决
+# backbone:
+#   # [from, number, module, args]
+#   [[-1, 1, Conv, [64, 6, 2, 2]],  # 0-P1/2
+#    [-1, 1, Conv, [128, 3, 2]],  # 1-P2/4
+#    [-1, 3, C3, [128]],
+#    [-1, 1, Conv, [256, 3, 2]],  # 3-P3/8
+#    [-1, 6, C3, [256]],
+#    [-1, 1, Conv, [512, 3, 2]],  # 5-P4/16
+#    [-1, 9, C3, [512]],
+#    [-1, 1, Conv, [768, 3, 2]],  # 7-P5/32
+#    [-1, 3, C3, [768]],
+#    [-1, 1, Conv, [1024, 3, 2]],  # 9-P6/64
+#    [-1, 3, C3, [1024]],
+#    [-1, 3, CBAM, [1024]],
+#    [-1, 1, SPPF, [1024, 5]],  # 11
+#   ]
+
+# # YOLOv5 v6.0 head
+# head:
+#   [[-1, 1, Conv, [768, 1, 1]],
+#    [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+#    [[-1, 8], 1, Concat, [1]],  # cat backbone P5
+#    [-1, 3, C3, [768, False]],  # 15 
+
+#    [-1, 1, Conv, [512, 1, 1]],
+#    [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+#    [[-1, 6], 1, Concat, [1]],  # cat backbone P4
+#    [-1, 3, C3, [512, False]],  # 19
+
+#    [-1, 1, Conv, [256, 1, 1]],
+#    [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+#    [[-1, 5], 1, Concat, [1]],  # cat backbone P3    [-1, 4]     +1
+#    [-1, 3, C3, [256, False]],  # 23 (P3/8-small)
+
+#    [-1, 1, Conv, [256, 3, 2]],
+#    [[-1, 21], 1, Concat, [1]],  # cat head P4        [-1, 20]     +1
+#    [-1, 3, C3, [512, False]],  # 26 (P4/16-medium)
+
+#    [-1, 1, Conv, [512, 3, 2]],
+#    [[-1, 17], 1, Concat, [1]],  # cat head P5        [-1, 16]       +1
+#    [-1, 3, C3, [768, False]],  # 29 (P5/32-large)
+
+#    [-1, 1, Conv, [768, 3, 2]],
+#    [[-1, 13], 1, Concat, [1]],  # cat head P6      [-1, 12]           +1
+#    [-1, 3, C3, [1024, False]],  # 32 (P6/64-xlarge)
+
+#    [[24, 25, 30, 33], 1, Detect, [nc, anchors]],  # [23, 26, 29, 32] //Detect(P3, P4, P5, P6)           +1
+#   ]
